@@ -1,0 +1,300 @@
+{
+  "name": "Tugas 4 - AI untuk Pemasaran - Wahyu Ahmad Yassin",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        32,
+        16
+      ],
+      "id": "07d5c15e-5aba-46f5-836f-1c4fb854f99a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1ZxUFvu2YTjyJRQ_i0Iqxvgnnp1Hr-YbDxa7XAHEr-8E",
+          "mode": "list",
+          "cachedResultName": "Tugas 4 Auto Posting Scheduler",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZxUFvu2YTjyJRQ_i0Iqxvgnnp1Hr-YbDxa7XAHEr-8E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 383847811,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZxUFvu2YTjyJRQ_i0Iqxvgnnp1Hr-YbDxa7XAHEr-8E/edit#gid=383847811"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        256,
+        16
+      ],
+      "id": "bd04a6ab-6288-4d20-94a4-f81edb98642e",
+      "name": "Get row(s) in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "T9eh1WhJRY3wZVHb",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n// Menggunakan DateTime bawaan n8n \nconst now = DateTime.now().setZone('Asia/Jakarta');\nconst postsToSend = [];\n\nfor (const item of items) {\n  const row = item.json;\n  \n  const dateStr = row['Scheduled Date'];\n  const timeStr = row['Scheduled Time'];\n\n  // PERBAIKAN: Gunakan .toLowerCase() untuk mengabaikan huruf besar/kecil\n  // Pastikan row.Status ada (tidak kosong) sebelum di-lowercase\n  if (row.Status && row.Status.toLowerCase() === 'pending' && dateStr && timeStr) {\n    \n    // Gabungkan tanggal dan waktu dengan spasi (bukan 'T')\n    const dateTimeString = `${dateStr} ${timeStr}`;\n    \n    // Gunakan fromFormat, karena format di Sheet Anda DD/MM/YYYY\n    const scheduledTime = DateTime.fromFormat(dateTimeString, 'dd/MM/yyyy H:mm:ss', { zone: 'Asia/Jakarta' });\n\n    // Cek validitas waktu & apakah sudah waktunya post\n    if (scheduledTime.isValid && scheduledTime <= now) {\n      postsToSend.push(item);\n    }\n  }\n}\n\nreturn postsToSend;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        16
+      ],
+      "id": "eb1b4c3e-d1f3-47e9-aac9-15be653819a8",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "chatId": "1060468909",
+        "text": "={{ $json.Content }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        704,
+        16
+      ],
+      "id": "756ad361-04b9-45e6-9017-0d9d6b5168ab",
+      "name": "Send a text message",
+      "webhookId": "f712c241-0fd5-432b-a3e7-cb610ff4cebd",
+      "credentials": {
+        "telegramApi": {
+          "id": "wfEYxt2vDg6bOb7n",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9d5b87fb-c844-41ed-ad95-1275f56cbe81",
+              "name": "ID",
+              "value": "={{ $('Code in JavaScript').item.json.ID }}",
+              "type": "string"
+            },
+            {
+              "id": "be24f9cd-9567-4504-8426-6492adef92a9",
+              "name": "Status",
+              "value": "Terpublikasi",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        928,
+        16
+      ],
+      "id": "5f2b1f52-13ef-4e12-b716-66e0661945f8",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "1ZxUFvu2YTjyJRQ_i0Iqxvgnnp1Hr-YbDxa7XAHEr-8E",
+          "mode": "list",
+          "cachedResultName": "Tugas 4 Auto Posting Scheduler",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZxUFvu2YTjyJRQ_i0Iqxvgnnp1Hr-YbDxa7XAHEr-8E/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 383847811,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1ZxUFvu2YTjyJRQ_i0Iqxvgnnp1Hr-YbDxa7XAHEr-8E/edit#gid=383847811"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Status": "={{ $json.Status }}",
+            "ID": "={{ $json.ID }}"
+          },
+          "matchingColumns": [
+            "ID"
+          ],
+          "schema": [
+            {
+              "id": "ID",
+              "displayName": "ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Content",
+              "displayName": "Content",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Scheduled Date",
+              "displayName": "Scheduled Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Scheduled Time",
+              "displayName": "Scheduled Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "row_number",
+              "displayName": "row_number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "canBeUsedToMatch": true,
+              "readOnly": true,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1152,
+        16
+      ],
+      "id": "f1a50c98-0c7e-4b1e-b51a-ed842f4a3ae3",
+      "name": "Update row in sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "T9eh1WhJRY3wZVHb",
+          "name": "Google Sheets account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get row(s) in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get row(s) in sheet": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send a text message": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Update row in sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "7186a3f3-4291-4447-8046-8fd5f89cbd14",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc96f10ae7dc95d3c138575ba243a0a167923dbcb524841d451aadf9135d5fb3"
+  },
+  "nodeGroups": [],
+  "id": "fAxMVeDcMiV6jzrD",
+  "tags": []
+}
