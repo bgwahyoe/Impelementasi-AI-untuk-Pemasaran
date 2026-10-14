@@ -1,0 +1,579 @@
+{
+  "name": "Tugas 5 - AI untuk Pemasaran - Wahyu Ahmad Yassin",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -64,
+        16
+      ],
+      "id": "db33f086-1809-45e7-93b4-fe8ea1ee95c5",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        528,
+        0
+      ],
+      "id": "0abbf811-d316-44bb-b3c0-6631e4de94d8",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst brandNodes = [\n  { brand: \"Samsung\", node: \"HTTP Samsung News\" },\n  { brand: \"Xiaomi\", node: \"HTTP Xiaomi News\" },\n  { brand: \"OPPO\", node: \"HTTP OPPO News\" },\n];\n\nconst results = [];\n\nfor (const entry of brandNodes) {\n  const items = $(entry.node).all();\n\n  let articles = [];\n\n  for (const item of items) {\n    const data = item.json;\n    const news = Array.isArray(data.news) ? data.news : [];\n\n    articles.push(...news);\n  }\n\n  // Hapus artikel duplikat berdasarkan URL.\n  const uniqueArticles = [\n    ...new Map(\n      articles.map((article, index) => [\n        article.link || `${entry.brand}-${index}`,\n        article\n      ])\n    ).values()\n  ];\n\n  results.push({\n    brand: entry.brand,\n    mentionCount: uniqueArticles.length,\n    articles: uniqueArticles.map(article => ({\n      title: article.title || \"\",\n      link: article.link || \"\",\n      source: article.source || \"\",\n      date: article.date || \"\",\n      snippet: article.snippet || \"\"\n    }))\n  });\n}\n\nconst totalMentions = results.reduce(\n  (sum, item) => sum + item.mentionCount,\n  0\n);\n\nconst output = results.map(item => ({\n  brand: item.brand,\n  mentionCount: item.mentionCount,\n  shareOfVoice: totalMentions > 0\n    ? Number(\n        (item.mentionCount / totalMentions * 100).toFixed(2)\n      )\n    : 0,\n  articles: item.articles\n}));\n\nreturn [{\n  json: {\n    generatedAt: new Date().toISOString(),\n    totalMentions,\n    brands: output\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        16
+      ],
+      "id": "fb5bb129-5735-4605-8177-ee7149434e48",
+      "name": "Kalkulasi SOV"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/news",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"q\": \"Samsung Galaxy\",\n  \"gl\": \"id\",\n  \"hl\": \"id\",\n  \"num\": 10\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        16
+      ],
+      "id": "325f43c0-50b7-4e48-a3a5-f4951e5f8267",
+      "name": "HTTP Samsung News",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "yCh9xAtxmKHldltw",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/news",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "\n{\n  \"q\": \"Xiaomi smartphone\",\n  \"gl\": \"id\",\n  \"hl\": \"id\",\n  \"num\": 10\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        -160
+      ],
+      "id": "e4c55e4d-184f-4d4a-b01e-52e80c623775",
+      "name": "HTTP Xiaomi News",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "yCh9xAtxmKHldltw",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://google.serper.dev/news",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "\n{\n  \"q\": \"OPPO smartphone\",\n  \"gl\": \"id\",\n  \"hl\": \"id\",\n  \"num\": 10\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        224,
+        192
+      ],
+      "id": "03c9352c-7c85-4c25-9cf1-9d9d1dc1fb09",
+      "name": "HTTP OPPO News",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "yCh9xAtxmKHldltw",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Kamu adalah analis reputasi merek smartphone berdasarkan data yang diberikan.  Analisis data untuk merek Samsung, Xiaomi, dan OPPO.\n\nTugas:\n1. Identifikasi sentimen publik sebagai positif, netral, atau negatif berdasarkan data yang tersedia. \n2. Berikan skor reputasi dari 1 sampai 10, dengan 10 sebagai reputasi paling positif. 3. Identifikasi isu atau keluhan yang muncul jika tersedia. \n4. Buat ringkasan analisis setiap merek.\n5. Jangan mengarang fakta atau menganggap data yang tidak tersedia sebagai bukti.\n6. Jika data tidak cukup untuk menentukan sentimen, nyatakan bahwa data tidak cukup.\n\nKembalikan hasil dalam format JSON valid tanpa Markdown atau code fence, menggunakan struktur berikut:  {   \"brands\": [     {       \"brand\": \"Samsung\",       \"sentiment\": \"positif/netral/negatif/tidak cukup data\",       \"reputation_score\": 0,       \"issues\": [],       \"summary\": \"Ringkasan analisis\",       \"confidence\": \"rendah/sedang/tinggi\"     }   ],   \"executive_summary\": \"Kesimpulan umum berdasarkan data yang tersedia\" }  Isi array brands untuk Samsung, Xiaomi, dan OPPO. Skor reputasi harus berupa angka 1–10. Confidence menunjukkan keyakinan analisis, bukan persentase.  DATA YANG DIANALISIS: {{ JSON.stringify($json) }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "Anda adalah pakar Strategi Bisnis dan Analis Intelijen Kompetitif.  Tugas Anda adalah menganalisis data mention dari internet untuk membandingkan brand Samsung dengan kompetitornya Xiaomi dan OPPO. Fokus pada sentimen, tren fitur, dan peluang pasar."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        928,
+        16
+      ],
+      "id": "cdd5dee0-080c-43c7-9527-8d4679cd3ec0",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3.1-flash-lite",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        864,
+        224
+      ],
+      "id": "27c108b1-551c-497c-bfe1-bddffe39482c",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Tccg9uELDXy9Kd7Y",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst raw = $input.first().json.text;\n\nlet result;\n\ntry {\n  result = typeof raw === 'string' ? JSON.parse(raw) : raw;\n} catch (error) {\n  throw new Error(\n    'Output Gemini bukan JSON valid. Periksa output Basic LLM Chain.'\n  );\n}\n\nif (!Array.isArray(result.brands)) {\n  throw new Error('Field brands tidak ditemukan atau bukan array.');\n}\n\nconst requiredBrands = ['Samsung', 'Xiaomi', 'OPPO'];\n\nfor (const brand of requiredBrands) {\n  const item = result.brands.find(\n    b => b.brand?.toLowerCase() === brand.toLowerCase()\n  );\n\n  if (!item) {\n    throw new Error(`Hasil analisis ${brand} tidak ditemukan.`);\n  }\n\n  if (\n    !Number.isFinite(item.reputation_score) ||\n    item.reputation_score < 1 ||\n    item.reputation_score > 10\n  ) {\n    throw new Error(`Skor reputasi ${brand} tidak valid.`);\n  }\n}\n\nreturn [{\n  json: {\n    brands: result.brands,\n    executive_summary: result.executive_summary,\n    validation_status: 'passed',\n    analyzed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        16
+      ],
+      "id": "63a388bf-79b7-47f9-b81a-3327fd4732b2",
+      "name": "Format Sentimen"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst rows = $('Google Sheet').all().map(item => item.json);\n\nconst esc = value => String(value ?? '')\n  .replace(/&/g, '&amp;')\n  .replace(/</g, '&lt;')\n  .replace(/>/g, '&gt;')\n  .replace(/\"/g, '&quot;')\n  .replace(/'/g, '&#39;');\n\nconst scoreColor = score => {\n  const n = Number(score);\n  if (n >= 7) return '#15803d';\n  if (n >= 4) return '#b45309';\n  return '#b91c1c';\n};\n\nconst sentimentLabel = sentiment => {\n  const s = String(sentiment ?? '').toLowerCase();\n  if (s.includes('positif')) return 'Positif';\n  if (s.includes('negatif')) return 'Negatif';\n  if (s.includes('netral')) return 'Netral';\n  return 'Tidak cukup data';\n};\n\nconst cards = rows.map(row => `\n  <section class=\"card\">\n    <div class=\"card-header\">\n      <h2>${esc(row.brand)}</h2>\n      <span class=\"sentiment\">${esc(sentimentLabel(row.sentiment))}</span>\n    </div>\n    <div class=\"score\">\n      <strong style=\"color:${scoreColor(row.reputation_score)}\">\n        ${esc(row.reputation_score)}/10\n      </strong>\n      <span>Skor Reputasi</span>\n    </div>\n    <h3>Ringkasan Analisis</h3>\n    <p>${esc(row.summary)}</p>\n    <h3>Isu yang Ditemukan</h3>\n    <p>${esc(row.issues || 'Tidak ada isu spesifik yang tercatat.')}</p>\n    <p class=\"confidence\">\n      Tingkat keyakinan: <strong>${esc(row.confidence)}</strong>\n    </p>\n  </section>\n`).join('');\n\nconst summary = rows[0]?.executive_summary || 'Kesimpulan umum tidak tersedia.';\nconst analyzedAt = rows[0]?.analyzed_at || new Date().toISOString();\n\nconst html = `<!DOCTYPE html>\n<html lang=\"id\">\n<head>\n<meta charset=\"UTF-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n<title>Laporan Analisis Reputasi Smartphone</title>\n<style>\n  * { box-sizing: border-box; }\n  body {\n    font-family: Arial, Helvetica, sans-serif;\n    color: #1f2937;\n    background: #f3f4f6;\n    margin: 0;\n    padding: 32px;\n    line-height: 1.6;\n  }\n  .report {\n    max-width: 900px;\n    margin: auto;\n    background: white;\n    padding: 38px;\n    border-radius: 12px;\n  }\n  .header {\n    border-bottom: 3px solid #2563eb;\n    padding-bottom: 20px;\n    margin-bottom: 28px;\n  }\n  .eyebrow {\n    color: #2563eb;\n    font-weight: bold;\n    letter-spacing: 1.5px;\n    font-size: 12px;\n  }\n  h1 { font-size: 28px; margin-bottom: 8px; }\n  .meta { color: #6b7280; font-size: 13px; }\n  .overview {\n    background: #eff6ff;\n    padding: 20px;\n    border-radius: 8px;\n    margin-bottom: 26px;\n  }\n  .cards {\n    display: grid;\n    grid-template-columns: 1fr;\n    gap: 18px;\n  }\n  .card {\n    border: 1px solid #e5e7eb;\n    border-radius: 10px;\n    padding: 22px;\n    page-break-inside: avoid;\n    break-inside: avoid;\n  }\n  .card-header {\n    display: flex;\n    justify-content: space-between;\n    align-items: center;\n    gap: 12px;\n    border-bottom: 1px solid #e5e7eb;\n    padding-bottom: 12px;\n  }\n  h2 { margin: 0; font-size: 21px; }\n  h3 { font-size: 14px; margin-bottom: 4px; }\n  .sentiment {\n    border-radius: 20px;\n    padding: 5px 12px;\n    background: #f3f4f6;\n    font-size: 12px;\n    font-weight: bold;\n  }\n  .score { margin: 18px 0; }\n  .score strong { font-size: 34px; }\n  .score span { color: #6b7280; margin-left: 8px; }\n  .confidence { font-size: 13px; color: #6b7280; }\n  footer {\n    border-top: 1px solid #e5e7eb;\n    margin-top: 30px;\n    padding-top: 16px;\n    font-size: 11px;\n    color: #6b7280;\n  }\n  @media print {\n    body { background: white; padding: 0; }\n    .report { padding: 20px; max-width: none; }\n  }\n</style>\n</head>\n<body>\n<main class=\"report\">\n  <header class=\"header\">\n    <div class=\"eyebrow\">LAPORAN ANALISIS AI</div>\n    <h1>Analisis Sentimen &amp; Reputasi Smartphone</h1>\n    <p class=\"meta\">Objek analisis: Samsung, Xiaomi, dan OPPO</p>\n    <p class=\"meta\">Waktu analisis: ${esc(analyzedAt)}</p>\n  </header>\n\n  <section class=\"overview\">\n    <h2>Ringkasan Eksekutif</h2>\n    <p>${esc(summary)}</p>\n  </section>\n\n  <h2>Hasil Analisis per Merek</h2>\n  <div class=\"cards\">${cards}</div>\n\n  <footer>\n    Laporan ini dihasilkan secara otomatis melalui workflow n8n\n    dengan bantuan Google Gemini. Skor reputasi merupakan estimasi\n    berdasarkan data yang tersedia, bukan ukuran reputasi absolut.\n    Hasil analisis bergantung pada kualitas dan cakupan data sumber.\n  </footer>\n</main>\n</body>\n</html>`;\n\nreturn [{\n  json: {\n    report_html: html,\n    report_title: 'Analisis Sentimen dan Reputasi Smartphone',\n    report_generated_at: new Date().toISOString()\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        240
+      ],
+      "id": "507adc4b-8cf6-4af0-ac31-4d8706e77055",
+      "name": "Generate HTML Report"
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1cRyVSyVTQy11Iz6Q1DmQ3Ongy2ulrpij91ZyTyBmV_Q",
+          "mode": "list",
+          "cachedResultName": "Tugas 5 - Analisis Brand",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1cRyVSyVTQy11Iz6Q1DmQ3Ongy2ulrpij91ZyTyBmV_Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1cRyVSyVTQy11Iz6Q1DmQ3Ongy2ulrpij91ZyTyBmV_Q/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "brand": "={{ $json.brand }}",
+            "sentiment": "={{ $json.sentiment }}",
+            "reputation_score": "={{ $json.reputation_score }}",
+            "issues": "={{ $json.issues }}",
+            "summary": "={{ $json.summary }}",
+            "confidence": "={{ $json.confidence }}",
+            "executive_summary": "={{ $json.executive_summary }}",
+            "validation_status": "={{ $json.validation_status }}",
+            "analyzed_at": "={{ $json.analyzed_at }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "brand",
+              "displayName": "brand",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "sentiment",
+              "displayName": "sentiment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reputation_score",
+              "displayName": "reputation_score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "issues",
+              "displayName": "issues",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "summary",
+              "displayName": "summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "confidence",
+              "displayName": "confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "executive_summary",
+              "displayName": "executive_summary",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "validation_status",
+              "displayName": "validation_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "analyzed_at",
+              "displayName": "analyzed_at",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1472,
+        240
+      ],
+      "id": "a3fc7930-8525-44d0-bc3b-b965b7c1d3b9",
+      "name": "Google Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "T9eh1WhJRY3wZVHb",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst result = $input.first().json;\n\nreturn result.brands.map(brand => ({\n  json: {\n    brand: brand.brand,\n    sentiment: brand.sentiment,\n    reputation_score: brand.reputation_score,\n    issues: Array.isArray(brand.issues)\n      ? brand.issues.join('; ')\n      : String(brand.issues ?? ''),\n    summary: brand.summary,\n    confidence: brand.confidence,\n    executive_summary: result.executive_summary,\n    validation_status: result.validation_status,\n    analyzed_at: result.analyzed_at\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        240
+      ],
+      "id": "5b60e2a2-6a61-41fb-a914-38714e900cb9",
+      "name": "Prepare Google Sheets"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.pdfshift.io/v3/convert/pdf",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "source",
+              "value": "={{ $json.report_html }}"
+            },
+            {
+              "name": "landscape",
+              "value": "false"
+            },
+            {
+              "name": "use_print",
+              "value": "true"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file",
+              "outputPropertyName": "pdf"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        1920,
+        240
+      ],
+      "id": "d2a35ba5-cbd4-41bb-80ec-b0ad7cffa60e",
+      "name": "HTML TO PDF"
+    },
+    {
+      "parameters": {
+        "operation": "sendDocument",
+        "chatId": "1060468909",
+        "binaryData": true,
+        "binaryPropertyName": "pdf",
+        "additionalFields": {
+          "caption": "Laporan Analisis Sentimen dan Reputasi Smartphone — Samsung, Xiaomi, dan OPPO.",
+          "fileName": "Laporan_Analisis_Reputasi_Smartphone.pdf"
+        }
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2144,
+        240
+      ],
+      "id": "2fcff6cc-1fc4-4639-ab62-1be0de79cff0",
+      "name": "Send a document",
+      "webhookId": "6459a6a1-7ff3-40a1-bbe9-f8c3062e4f8d",
+      "credentials": {
+        "telegramApi": {
+          "id": "wfEYxt2vDg6bOb7n",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Samsung News",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Xiaomi News",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP OPPO News",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Kalkulasi SOV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Kalkulasi SOV": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Samsung News": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "HTTP Xiaomi News": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP OPPO News": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Format Sentimen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Sentimen": {
+      "main": [
+        [
+          {
+            "node": "Prepare Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheet": {
+      "main": [
+        [
+          {
+            "node": "Generate HTML Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Google Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate HTML Report": {
+      "main": [
+        [
+          {
+            "node": "HTML TO PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML TO PDF": {
+      "main": [
+        [
+          {
+            "node": "Send a document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "20323651-6045-4bbb-857b-36d575a1110f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc96f10ae7dc95d3c138575ba243a0a167923dbcb524841d451aadf9135d5fb3"
+  },
+  "nodeGroups": [],
+  "id": "3ORgngEppVOebRtt",
+  "tags": []
+}
