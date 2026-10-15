@@ -1,0 +1,367 @@
+{
+  "name": "Tugas 6 - AI untuk Pemasaran - Wahyu Ahmad Yassin",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -816,
+        -144
+      ],
+      "id": "4513d116-5b86-455a-bd2d-0a8e8916f18c",
+      "name": "Manual Triger"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "1S9UjFzSpXa-nxQuO_ZntT_5-PLsYLt6aQEbgm2BcADE",
+          "mode": "list",
+          "cachedResultName": "Best Time to Post",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1S9UjFzSpXa-nxQuO_ZntT_5-PLsYLt6aQEbgm2BcADE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1S9UjFzSpXa-nxQuO_ZntT_5-PLsYLt6aQEbgm2BcADE/edit#gid=0"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -592,
+        -144
+      ],
+      "id": "4ef02ccf-4f2d-43b6-8835-9706b14a824b",
+      "name": "Baca Data",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "T9eh1WhJRY3wZVHb",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "1060468909",
+        "text": "={{ $json.telegram_message }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        528,
+        -144
+      ],
+      "id": "fa982f6d-a466-4b83-bcf6-44975126f9a8",
+      "name": "Send a text message",
+      "webhookId": "76eb2eb1-fc65-44c9-8566-b7bad1cd4e23",
+      "credentials": {
+        "telegramApi": {
+          "id": "wfEYxt2vDg6bOb7n",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst rows = $input.all();\n\nconst toNumber = (value) => {\n  const n = Number(value ?? 0);\n  return Number.isFinite(n) ? n : 0;\n};\n\nconst hourlyData = {};\nlet skippedRows = 0;\n\nfor (const item of rows) {\n  const row = item.json;\n\n  const rawTime =\n    row[\"Jam Posting\"] ??\n    row[\"Jam Tayang\"] ??\n    row[\"Waktu Posting\"] ??\n    row[\"Waktu\"] ??\n    row[\"Jam\"];\n\n  let hour;\n\n  // Format jam berupa angka, misalnya 9 atau 18.\n  if (\n    typeof rawTime === \"number\" ||\n    /^\\s*\\d{1,2}\\s*$/.test(String(rawTime ?? \"\"))\n  ) {\n    hour = Number(rawTime);\n  } else {\n    // Format teks, misalnya 09:00 atau tanggal + jam.\n    const match = String(rawTime ?? \"\").match(\n      /\\b(\\d{1,2}):(\\d{2})(?::\\d{2})?\\b/\n    );\n\n    if (!match) {\n      skippedRows++;\n      continue;\n    }\n\n    hour = Number(match[1]);\n  }\n\n  if (!Number.isInteger(hour) || hour < 0 || hour > 23) {\n    skippedRows++;\n    continue;\n  }\n\n  const time = `${String(hour).padStart(2, \"0\")}:00`;\n\n  const likes = toNumber(row[\"Likes\"] ?? row[\"Like\"]);\n  const comments = toNumber(row[\"Comments\"] ?? row[\"Comment\"]);\n  const shares = toNumber(row[\"Shares\"] ?? row[\"Share\"]);\n\n  // Engagement Score = Likes + (Comments x 2) + (Shares x 3)\n  const engagementScore = likes + comments * 2 + shares * 3;\n\n  if (!hourlyData[time]) {\n    hourlyData[time] = {\n      jam_posting: time,\n      jumlah_postingan: 0,\n      total_likes: 0,\n      total_comments: 0,\n      total_shares: 0,\n      total_engagement: 0\n    };\n  }\n\n  const group = hourlyData[time];\n\n  group.jumlah_postingan++;\n  group.total_likes += likes;\n  group.total_comments += comments;\n  group.total_shares += shares;\n  group.total_engagement += engagementScore;\n}\n\nconst groups = Object.values(hourlyData);\n\nif (groups.length === 0) {\n  return [{\n    json: {\n      status: \"error\",\n      pesan: \"Tidak ada jam posting yang valid. Periksa kolom Jam Posting.\",\n      jumlah_data_masuk: rows.length,\n      jumlah_baris_dilewati: skippedRows\n    }\n  }];\n}\n\ngroups.sort((a, b) =>\n  (b.total_engagement / b.jumlah_postingan) -\n  (a.total_engagement / a.jumlah_postingan)\n);\n\nreturn groups.slice(0, 5).map((group, index) => ({\n  json: {\n    peringkat: index + 1,\n    jam_posting: group.jam_posting,\n    jumlah_postingan: group.jumlah_postingan,\n    total_likes: group.total_likes,\n    total_comments: group.total_comments,\n    total_shares: group.total_shares,\n    total_engagement: group.total_engagement,\n    rata_rata_engagement: Number(\n      (group.total_engagement / group.jumlah_postingan).toFixed(2)\n    ),\n    jumlah_data_masuk: rows.length,\n    jumlah_baris_dilewati: skippedRows\n  }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        -144
+      ],
+      "id": "70fe4164-6ae2-47cd-9efe-142056128f8e",
+      "name": "Hitung Engagement",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "1S9UjFzSpXa-nxQuO_ZntT_5-PLsYLt6aQEbgm2BcADE",
+          "mode": "list",
+          "cachedResultName": "Best Time to Post",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1S9UjFzSpXa-nxQuO_ZntT_5-PLsYLt6aQEbgm2BcADE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1385820468,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1S9UjFzSpXa-nxQuO_ZntT_5-PLsYLt6aQEbgm2BcADE/edit#gid=1385820468"
+        }
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -144,
+        -144
+      ],
+      "id": "ae7b0009-ad2f-478d-bf2b-3f49929a4d60",
+      "name": "Clear data lama",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "T9eh1WhJRY3wZVHb",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1S9UjFzSpXa-nxQuO_ZntT_5-PLsYLt6aQEbgm2BcADE",
+          "mode": "list",
+          "cachedResultName": "Best Time to Post",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1S9UjFzSpXa-nxQuO_ZntT_5-PLsYLt6aQEbgm2BcADE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1385820468,
+          "mode": "list",
+          "cachedResultName": "Sheet2",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1S9UjFzSpXa-nxQuO_ZntT_5-PLsYLt6aQEbgm2BcADE/edit#gid=1385820468"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "peringkat": "={{ $json.peringkat }}",
+            "jam_posting": "={{ $json.jam_posting }}",
+            "jumlah_postingan": "={{ $json.jumlah_postingan }}",
+            "total_likes": "={{ $json.total_likes }}",
+            "total_comments": "={{ $json.total_comments }}",
+            "total_shares": "={{ $json.total_shares }}",
+            "total_engagement": "={{ $json.total_engagement }}",
+            "rata_rata_engagement": "={{ $json.rata_rata_engagement }}",
+            "jumlah_data_masuk": "={{ $json.jumlah_data_masuk }}",
+            "jumlah_baris_dilewati": "={{ $json.jumlah_baris_dilewati }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "peringkat",
+              "displayName": "peringkat",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jam_posting",
+              "displayName": "jam_posting",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlah_postingan",
+              "displayName": "jumlah_postingan",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_likes",
+              "displayName": "total_likes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_comments",
+              "displayName": "total_comments",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_shares",
+              "displayName": "total_shares",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "total_engagement",
+              "displayName": "total_engagement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "rata_rata_engagement",
+              "displayName": "rata_rata_engagement",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlah_data_masuk",
+              "displayName": "jumlah_data_masuk",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "jumlah_baris_dilewati",
+              "displayName": "jumlah_baris_dilewati",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        80,
+        -144
+      ],
+      "id": "d969c457-2722-4520-8ef0-ea56ddb0f942",
+      "name": "Simpan Hasil",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "T9eh1WhJRY3wZVHb",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\n\nconst medal = [\"🥇\", \"🥈\", \"🥉\", \"4️⃣\", \"5️⃣\"];\n\nconst hasil = items\n  .sort((a, b) => Number(a.json.peringkat) - Number(b.json.peringkat))\n  .map((item, index) => {\n    const d = item.json;\n\n    return `${medal[index] || \"📍\"} JAM ${d.jam_posting}\n\n   📊 Rata-rata Engagement : ${Number(d.rata_rata_engagement).toLocaleString(\"id-ID\")}\n   📝 Jumlah Postingan     : ${d.jumlah_postingan}\n   ❤️ Total Likes          : ${Number(d.total_likes).toLocaleString(\"id-ID\")}\n   💬 Total Comments       : ${Number(d.total_comments).toLocaleString(\"id-ID\")}\n   🔁 Total Shares         : ${Number(d.total_shares).toLocaleString(\"id-ID\")}\n   ⚡ Total Engagement     : ${Number(d.total_engagement).toLocaleString(\"id-ID\")}`;\n  })\n  .join(\"\\n\\n━━━━━━━━━━━━━━━━━━\\n\\n\");\n\nconst terbaik = items\n  .slice()\n  .sort((a, b) =>\n    Number(b.json.rata_rata_engagement) -\n    Number(a.json.rata_rata_engagement)\n  )[0]?.json;\n\nconst pesan = `📊 RINGKASAN ANALISIS ENGAGEMENT\n━━━━━━━━━━━━━━━━━━\n\n👋 Halo! Berikut hasil analisis jam posting terbaik berdasarkan data yang telah diolah.\n\n🏆 TOP 5 JAM POSTING TERBAIK\n\n${hasil}\n\n━━━━━━━━━━━━━━━━━━\n💡 REKOMENDASI\n\n🚀 Prioritaskan jam ${terbaik?.jam_posting || \"-\"} karena memiliki rata-rata engagement tertinggi, yaitu ${Number(terbaik?.rata_rata_engagement || 0).toLocaleString(\"id-ID\")}.\n\n📌 Gunakan hasil ini sebagai acuan untuk menyusun jadwal konten berikutnya. Evaluasi secara berkala agar strategi posting tetap sesuai dengan respons audiens.\n\n🤖 Laporan dibuat otomatis menggunakan n8n.\n`;\n\nreturn [\n  {\n    json: {\n      telegram_message: pesan\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -144
+      ],
+      "id": "d62a503e-ee95-4eeb-8cc8-6cf18a8a92b1",
+      "name": "Format Pesan Telegram"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Triger": {
+      "main": [
+        [
+          {
+            "node": "Baca Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Baca Data": {
+      "main": [
+        [
+          {
+            "node": "Hitung Engagement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hitung Engagement": {
+      "main": [
+        [
+          {
+            "node": "Clear data lama",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clear data lama": {
+      "main": [
+        [
+          {
+            "node": "Simpan Hasil",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simpan Hasil": {
+      "main": [
+        [
+          {
+            "node": "Format Pesan Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Pesan Telegram": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "1f90eea8-dd0e-40a7-8ddf-ed9bf31e911b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc96f10ae7dc95d3c138575ba243a0a167923dbcb524841d451aadf9135d5fb3"
+  },
+  "nodeGroups": [],
+  "id": "6AQv5K2VIWqG2Zi6",
+  "tags": []
+}
